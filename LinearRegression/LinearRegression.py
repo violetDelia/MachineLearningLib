@@ -20,6 +20,9 @@ class LinearRegression(RidgeRegression, StagewiseRegression, DataVisualization, 
         f_test_confidence_interval: F检验的置信度
         stagewize_learning_rate: 分段回归算法中的学习率
         stagewize_max_steps: 分段回归迭代次数
+        GD_max_steps: 梯度下降最大迭代次数
+        GD_step_rate: 梯度下降搜索步长
+        GD_epsilon: 梯度下降结果误差许可值
     '''
     A = None
 
@@ -97,11 +100,17 @@ class LinearRegression(RidgeRegression, StagewiseRegression, DataVisualization, 
         向后逐步
         '''
 
-    def __init__(self, Lambda_l2=0.001, f_test_confidence_interval=0.95, stagewize_learning_rate=0.01, stagewize_max_steps=10000):
+    def __init__(self, Lambda_l2=1,
+                 f_test_confidence_interval=0.95, stagewize_learning_rate=0.01, stagewize_max_steps=10000,
+                 GD_max_steps=1000, GD_step_rate=0.1, GD_epsilon=0.001, GD_init_w=None):
         self._set_Lambda_l2(Lambda_l2)
         self._set_f_test_confidence_interval(f_test_confidence_interval)
         self._set_stagewize_learning_rate(stagewize_learning_rate)
         self._set_stagewize_max_steps(stagewize_max_steps)
+        self._set_GD_max_steps(GD_max_steps)
+        self._set_GD_step_rate(GD_step_rate)
+        self._set_GD_epsilon(GD_epsilon)
+        self._set_GD_init_w(GD_init_w)
 
     def _preprocessing(self, X_train, y_train, processingType, weights, processing_feature_degree):
         '''
@@ -115,8 +124,7 @@ class LinearRegression(RidgeRegression, StagewiseRegression, DataVisualization, 
             weights: 权重向量
             processing_feature_degree: 多项式处理的次数
         '''
-        if weights is not None:
-            X_train = self._process_weight_to_features(X_train, weights)
+
         if processingType == self.ProcessingType.not_process:
             X_processed = X_train
         if processingType == self.ProcessingType.normal:
@@ -124,13 +132,16 @@ class LinearRegression(RidgeRegression, StagewiseRegression, DataVisualization, 
         if processingType == self.ProcessingType.multinomial:
             X_processed = self._process_feature_to_multinomial_features(
                 X_train, processing_feature_degree)
+        if weights is not None:
+            X_processed = self._process_weight_to_features(
+                X_processed, weights)
         y_processed = y_train
         return X_processed, y_processed
 
     def _prepare(self, X_train, y_train, regressionType, soulutionType, processingType, weights,
-                 processing_feature_degree, featureSelectionType, GD_max_steps, GD_step_rate, GD_epsilon):
+                 processing_feature_degree, featureSelectionType):
         '''
-
+        数据处理以及特征选取
 
         参数:
             X_train: 训练用的样本,是一个(m,n)的数组.
@@ -151,10 +162,10 @@ class LinearRegression(RidgeRegression, StagewiseRegression, DataVisualization, 
         if featureSelectionType is not None:
             if featureSelectionType == self.FeatureSelectType.step_forward:
                 self._forward_selection(
-                    X_processed, y_processed, regressionType, soulutionType, GD_max_steps, GD_step_rate, GD_epsilon)
+                    X_processed, y_processed, regressionType, soulutionType)
             if featureSelectionType == self.FeatureSelectType.step_backward:
                 self._backward_selection(
-                    X_processed, y_processed, regressionType, soulutionType, GD_max_steps, GD_step_rate, GD_epsilon)
+                    X_processed, y_processed, regressionType, soulutionType)
         return X_processed, y_processed
 
     def _check_type(self, regressionType, soulutionType, processingType, selectionType):
@@ -175,7 +186,7 @@ class LinearRegression(RidgeRegression, StagewiseRegression, DataVisualization, 
                     return True
         return False
 
-    def _forward_selection(self, X_processed, y_processed, regressionType, soulutionType, GD_max_steps, GD_step_rate, GD_epsilon):
+    def _forward_selection(self, X_processed, y_processed, regressionType, soulutionType):
         '''
         逐步向前选择特征:
 
@@ -195,7 +206,7 @@ class LinearRegression(RidgeRegression, StagewiseRegression, DataVisualization, 
             regressionType = self.RegressionType.LinearRegression
         while len(C) > 0:
             w = self.fit(X_processed, y_processed, regressionType, soulutionType,
-                         self.ProcessingType.not_process, None, None, None, GD_max_steps, GD_step_rate, GD_epsilon)
+                         self.ProcessingType.not_process, None, None, None)
             distances = y_processed - X_processed[:, A].dot(w)
             MSE_A = distances.T.dot(distances)[0, 0]
             MSE_min = float("inf")
@@ -203,7 +214,7 @@ class LinearRegression(RidgeRegression, StagewiseRegression, DataVisualization, 
             for j in C:
                 self.A = A+[j]
                 w = self.fit(X_processed, y_processed, regressionType, soulutionType,
-                             self.ProcessingType.not_process, None, None, None, GD_max_steps, GD_step_rate, GD_epsilon)
+                             self.ProcessingType.not_process, None, None, None)
                 distances = y_processed - X_processed[:, A+[j]].dot(w)
                 MSE_j = distances.T.dot(distances)[0, 0]
                 if MSE_j < MSE_min:
@@ -213,9 +224,10 @@ class LinearRegression(RidgeRegression, StagewiseRegression, DataVisualization, 
                 C.remove(j_min)
             else:
                 break
+        print(A)
         self.A = A
 
-    def _backward_selection(self, X_processed, y_processed, regressionType, soulutionType, GD_max_steps, GD_step_rate, GD_epsilon):
+    def _backward_selection(self, X_processed, y_processed, regressionType, soulutionType):
         '''
         逐步向后选择特征:
 
@@ -231,9 +243,11 @@ class LinearRegression(RidgeRegression, StagewiseRegression, DataVisualization, 
         m, n = X_processed.shape
         A, C = [i for i in range(0, n)], []
         self.A = A
-        while len(A) > 0:
+        if regressionType == self.RegressionType.StagewiseRegression:
+            regressionType = self.RegressionType.LinearRegression
+        while len(A) > 1:
             w = self.fit(X_processed, y_processed, regressionType, soulutionType,
-                         self.ProcessingType.not_process, None, None, None, GD_max_steps, GD_step_rate, GD_epsilon)
+                         self.ProcessingType.not_process, None, None, None)
             distances = y_processed - X_processed[:, A].dot(w)
             MSE_A = distances.T.dot(distances)[0, 0]
             MSE_min = float('inf')
@@ -243,7 +257,7 @@ class LinearRegression(RidgeRegression, StagewiseRegression, DataVisualization, 
                 A_copy.remove(j)
                 self.A = A_copy
                 w = self.fit(X_processed, y_processed, regressionType, soulutionType,
-                             self.ProcessingType.not_process, None, None, None, GD_max_steps, GD_step_rate, GD_epsilon)
+                             self.ProcessingType.not_process, None, None, None)
                 distances = y_processed - X_processed[:, A_copy].dot(w)
                 MSE_j = distances.T.dot(distances)[0, 0]
                 if MSE_j < MSE_min:
@@ -253,12 +267,13 @@ class LinearRegression(RidgeRegression, StagewiseRegression, DataVisualization, 
                 C.append(j_min)
             else:
                 break
+        print(A)
         self.A = A
 
-    def RANSAC(self, X_train, y_train, max_distance, min_pass_num=20, sub_rate=0.3, max_steps=100,
+    def RANSAC(self, X_train, y_train, max_distance, pass_rate=0.6, sub_rate=0.3, max_steps=100,
                regressionType=RegressionType.LinearRegression, soulutionType=SoulutionType.normal,
                processingType=ProcessingType.not_process, weights=None,
-               processing_feature_degree=2, featureSelectionType=None, GD_max_steps=3000, GD_step_rate=0.1, GD_epsilon=1e-6):
+               processing_feature_degree=2, featureSelectionType=None):
         '''
         随机采样
 
@@ -272,41 +287,38 @@ class LinearRegression(RidgeRegression, StagewiseRegression, DataVisualization, 
             processing_feature_degree: 多项式处理时的次数
             featureSelectionType: 特征选择类型
             max_distance: 允许的误差范围
-            min_pass_num: 更新结果需要的的最小个数
+            pass_rate: 超过这个比率的点在误差范围内就挑选出合格的样本点再一次计算模型并更新
             sub_rate: 选取子集的比例
             max_steps: 迭代数
-            GD_max_steps: 梯度下降最大迭代次数
-            GD_step_rate: 梯度下降搜索步长
-            GD_epsilon: 梯度下降结果误差许可值
+        注意:
+            如果没有w值增加max_distance
         '''
         X_processed, y_processed = self._prepare(X_train, y_train, regressionType, soulutionType, processingType,
-                                                 weights, processing_feature_degree, featureSelectionType, GD_max_steps,
-                                                 GD_step_rate, GD_epsilon)
+                                                 weights, processing_feature_degree, featureSelectionType)
         step = 0
         min_MSE = float("inf")
         best_w = 0
-        ym,yn = y_processed.shape
+        ym, yn = y_processed.shape
         Xy = np.concatenate((X_processed, y_processed), axis=1)
         while step < max_steps:
-            X_subset, y_subset = self._get_subset(Xy, sub_rate,yn)
+            X_subset, y_subset = self._get_subset(Xy, sub_rate, yn)
             current_w = self.fit(X_subset, y_subset, regressionType, soulutionType, self.ProcessingType.not_process,
-                                 weights, processing_feature_degree, None, GD_max_steps, GD_step_rate, GD_epsilon)
+                                 weights, processing_feature_degree, None)
             y_subset_predict = self._predict(
                 X_subset, current_w, self.ProcessingType.not_process, processing_feature_degree, weights)
             need_recompute, X_new, y_new = self._check_passed(
-                X_subset, y_subset, y_subset_predict, max_distance, min_pass_num)
+                X_subset, y_subset, y_subset_predict, max_distance, pass_rate)
             if need_recompute:
                 current_w = self.fit(X_new, y_new, regressionType, soulutionType, self.ProcessingType.not_process,
-                                     weights, processing_feature_degree, None, GD_max_steps, GD_step_rate, GD_epsilon)
+                                     weights, processing_feature_degree, None)
                 y_new_predict = self._predict(
-                    X_new, current_w, self.ProcessingType.not_process, processing_feature_degree,weights)
+                    X_new, current_w, self.ProcessingType.not_process, processing_feature_degree, weights)
                 current_MSE = self.MSE(y_new, y_new_predict)
                 # y_predict = self._predict(
                 #     X_processed, current_w, self.ProcessingType.not_process, processing_feature_degree,weights)
                 # current_MSE = self.MSE(y_processed, y_predict)
                 if current_MSE < min_MSE:
                     min_MSE = current_MSE
-                    print(current_MSE)
                     best_w = current_w
             # else:
             #     current_MSE = self.MSE(y_subset, y_subset_predict)
@@ -316,7 +328,7 @@ class LinearRegression(RidgeRegression, StagewiseRegression, DataVisualization, 
             step += 1
         self.w = best_w
 
-    def fit(self, X_train, y_train, regressionType, soulutionType, processingType, weights, processing_feature_degree, featureSelectionType, GD_max_steps, GD_step_rate, GD_epsilon):
+    def fit(self, X_train, y_train, regressionType, soulutionType, processingType, weights, processing_feature_degree, featureSelectionType):
         '''
         寻找w
 
@@ -333,8 +345,7 @@ class LinearRegression(RidgeRegression, StagewiseRegression, DataVisualization, 
             GD_epsilon: 梯度下降结果误差许可值
         '''
         X_processed, y_processed = self._prepare(X_train, y_train, regressionType, soulutionType, processingType,
-                                                 weights, processing_feature_degree, featureSelectionType, GD_max_steps,
-                                                 GD_step_rate, GD_epsilon)
+                                                 weights, processing_feature_degree, featureSelectionType)
         m, n = X_processed.shape
         if self.A is None:
             self.A = [i for i in range(0, n)]
@@ -343,17 +354,18 @@ class LinearRegression(RidgeRegression, StagewiseRegression, DataVisualization, 
             if soulutionType == self.SoulutionType.normal:
                 return self._fit_linear_normal(X_processed, y_processed)
             if soulutionType == self.SoulutionType.GD:
-                return self._fit_linear_GD(X_processed, y_processed, GD_max_steps, GD_step_rate, GD_epsilon)
+                return self._fit_linear_GD(X_processed, y_processed)
         if regressionType == self.RegressionType.RidgeRegression:
             if soulutionType == self.SoulutionType.normal:
                 return self._fit_ridge_normal(X_processed, y_processed)
+            if soulutionType == self.SoulutionType.GD:
+                return self._fit_ridge_GD(X_processed, y_processed)
         if regressionType == self.RegressionType.StagewiseRegression:
             return self._fit_stagewize(X_processed, y_processed)
 
     def train(self, X_train, y_train, regressionType=RegressionType.LinearRegression,
               soulutionType=SoulutionType.normal, processingType=ProcessingType.normal,
-              weights=None, processing_feature_degree=2, featureSelectionType=None,
-              GD_max_steps=3000, GD_step_rate=0.1, GD_epsilon=1e-6):
+              weights=None, processing_feature_degree=2, featureSelectionType=None,):
         '''
         训练模型
 
@@ -371,8 +383,7 @@ class LinearRegression(RidgeRegression, StagewiseRegression, DataVisualization, 
             GD_epsilon: 梯度下降结果误差许可值
         '''
         self.w = self.fit(X_train, y_train, regressionType, soulutionType,
-                          processingType, weights, processing_feature_degree, featureSelectionType,
-                          GD_max_steps, GD_step_rate, GD_epsilon)
+                          processingType, weights, processing_feature_degree, featureSelectionType)
 
     def predict(self, X, processingType=ProcessingType.normal, processing_feature_degree=2, weights=None):
         '''

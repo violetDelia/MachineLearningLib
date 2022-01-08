@@ -38,17 +38,17 @@ if __name__ == "__main__":
     noweight_y_predict = noweight_model.predict(
         X_test_processed, processingType=noweight_model.ProcessingType.not_process)
 
-    skmodel = skLinearRegression()
-    skmodel.fit(X_train_processed, y_train, sample_weight=weights)
-    sky_predict = skmodel.predict(X_test_processed)
+    linear_model = skLinearRegression()
+    linear_model.fit(X_train_processed, y_train, sample_weight=weights)
+    linear_y_predict = linear_model.predict(X_test_processed)
 
     print("无权重的均方误差: ", noweight_model.MSE(y_test, noweight_y_predict),
           " 无权重的R2: ", noweight_model.R2_score(y_test, noweight_y_predict))
     print("自己写的均方误差: ", model.MSE(y_test, y_predict),
           " 自己写的R2: ", model.R2_score(y_test, y_predict))
-    print("sk库线性回归的均方误差: ", model.MSE(y_test, sky_predict),
-          " sk库线性回归的R2: ", skmodel.score(X_test_processed, y_test))
+    print("sk库线性回归的均方误差: ", model.MSE(y_test, linear_y_predict),
+          " sk库线性回归的R2: ", linear_model.score(X_test_processed, y_test))
 
     model.plot_true_scatter_and_compare_predict_line(
-        X_test, y_test, y_predict, sky_predict)
+        X_test, y_test, y_predict, linear_y_predict)
     plt.show()

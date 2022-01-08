@@ -23,11 +23,13 @@ class StagewiseRegression:
         self.stagewize_max_steps = 10000
         if isinstance(stagewize_max_steps, int) and stagewize_max_steps > 0:
             if stagewize_max_steps > 1000000:
+                print("迭代数过大,更新为1000000")
                 self.stagewize_max_steps = 1000000
             else:
                 self.stagewize_max_steps = stagewize_max_steps
         if isinstance(stagewize_max_steps, float) and stagewize_max_steps > 0:
             if stagewize_max_steps > 1000000:
+                print("迭代数过大,更新为1000000")
                 self.stagewize_max_steps = 1000000
             else:
                 self.stagewize_max_steps = int(stagewize_max_steps)
@@ -52,11 +54,12 @@ class StagewiseRegression:
             corr = X.T.dot(distances)/norms
             # 相关性最高的那组特征
             j_max = np.argmax(abs(corr))
-            if corr[j_max]< self.stagewize_learning_rate:
+            if corr[j_max] < self.stagewize_learning_rate:
                 break
             if w[j_max] == 0:
                 w[j_max] = self.stagewize_learning_rate
-                distances = distances - self.stagewize_learning_rate * X[:, j_max].reshape(-1, 1)
+                distances = distances - self.stagewize_learning_rate * \
+                    X[:, j_max].reshape(-1, 1)
             else:
                 delta = self.stagewize_learning_rate * np.sign(corr[j_max])
                 w[j_max] = w[j_max] + delta

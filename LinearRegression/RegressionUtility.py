@@ -63,7 +63,7 @@ class RegressionUtility(MSEMixin):
         np.random.shuffle(Xy)
         return Xy[:math.ceil(m*sub_rate), 0:n-yn], Xy[:math.ceil(m*sub_rate), n-yn:n]
 
-    def _check_passed(self, X_subset, y_subset, y_subset_predict, max_distance, min_pass_num):
+    def _check_passed(self, X_subset, y_subset, y_subset_predict, max_distance, pass_rate):
         '''
         检查是否通过采样检验,并且选取合格的数据
 
@@ -72,7 +72,7 @@ class RegressionUtility(MSEMixin):
             y_subset: 采样结果集.
             y_subset_predict: 采样预测集
             max_distance: 允许的误差范围
-            min_pass_num: 更新结果需要的的最小个数
+            pass_rate: 超过这个比率的点在误差范围内就挑选出合格的样本点再一次计算模型并更新
             min_MSE: 此前计算出的最小均方误差
 
         返回:
@@ -93,4 +93,4 @@ class RegressionUtility(MSEMixin):
                 X_new.append(X_subset[i])
         X_new = np.array(X_new)
         y_new = np.array(y_new)
-        return pass_count >= min_pass_num, X_new, y_new
+        return pass_count/m >= pass_rate, X_new, y_new

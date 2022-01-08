@@ -13,14 +13,13 @@ from sklearn.linear_model import RANSACRegressor
 def generate_sample(m):
     np.random.seed(int(time.time()))
     X = 2*(np.random.rand(m, 1)-0.5)
-    y = 10*X**3-10*X**2 + 10*X + 3 + np.random.normal(0, 0.5, (m, 1))
+    y = 10*X**3-2*X**2 + 5*X + 3 + np.random.normal(0, 0.5, (m, 1))
     return X.reshape(-1, 1), y.reshape(-1, 1)
 
-
-def generate_ransac_sample(m, k):
+def generate_ransac_sample(m,k):
     np.random.seed(int(time.time()))
     X = 2*(np.random.rand(m, 1)-0.5)
-    y = 10*X**3-10*X**2 + 10*X + 3 + np.random.normal(0, 0.5, (m, 1))
+    y = 10*X**3-2*X**2 + 5*X + 3 + np.random.normal(0, 0.5, (m, 1))
     X_outlier = 2*(np.random.rand(k, 1)-0.5)
     y_outlier = 10*X_outlier**3-2*X_outlier**2 + 5 * \
         X_outlier + 23 + np.random.normal(0, 0.5, (k, 1))
@@ -30,11 +29,11 @@ def generate_ransac_sample(m, k):
 
 
 if __name__ == "__main__":
-    X_train, y_train = generate_ransac_sample(1000, 100)
+    X_train, y_train = generate_ransac_sample(1000,200)
     X_test, y_test = generate_sample(100)
 
     model = LinearRegression()
-    model.RANSAC(X_train, y_train, 5,0.5,0.3,100, regressionType=model.RegressionType.LinearRegression,
+    model.RANSAC(X_train, y_train, 5, regressionType=model.RegressionType.StagewiseRegression,
                  soulutionType=model.SoulutionType.normal, processingType=model.ProcessingType.multinomial,
                  processing_feature_degree=10)
     y_predict = model.predict(
@@ -49,7 +48,7 @@ if __name__ == "__main__":
     ransac_y_predict = ransac_model.predict(X_test)
 
     print("选取的特征: ", model.A)
-
+    print(model.w)
     print("自己写的均方误差: ", model.MSE(y_test, y_predict),
           " 自己写的R2: ", model.R2_score(y_test, y_predict))
     print("sk库ransac的均方误差: ", model.MSE(y_test, ransac_y_predict),

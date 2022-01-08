@@ -8,7 +8,6 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import Ridge
 
-
 def generate_sample(m):
     np.random.seed(int(time.time()))
     X = 2*(np.random.rand(m, 1)-0.5)
@@ -20,10 +19,10 @@ if __name__ == "__main__":
     X_train, y_train = generate_sample(100)
     X_test, y_test = generate_sample(100)
 
-    model = LinearRegression(f_test_confidence_interval=0.95)
-    model.train(X_train, y_train, regressionType=model.RegressionType.LinearRegression,
+    model = LinearRegression(f_test_confidence_interval= 0.95)
+    model.train(X_train, y_train, regressionType=model.RegressionType.StagewiseRegression,
                 soulutionType=model.SoulutionType.normal, processingType=model.ProcessingType.multinomial,
-                processing_feature_degree=10, featureSelectionType=model.FeatureSelectType.step_backward)
+                processing_feature_degree=10,featureSelectionType=model.FeatureSelectType.step_backward)
     y_predict = model.predict(
         X_test, processingType=model.ProcessingType.multinomial, processing_feature_degree=10)
 
@@ -45,3 +44,5 @@ if __name__ == "__main__":
     model.plot_true_scatter_and_compare_predict_line(
         X_test, y_test, y_predict, linear_y_predict)
     plt.show()
+
+

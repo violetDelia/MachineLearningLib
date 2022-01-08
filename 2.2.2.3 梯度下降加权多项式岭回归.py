@@ -3,10 +3,11 @@ from LinearRegression.LinearRegression import LinearRegression
 from sklearn.linear_model import LinearRegression as skLinearRegression
 import matplotlib.pyplot as plt
 import time
-from sklearn.linear_model import Ridge
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import PolynomialFeatures
+from sklearn.linear_model import Ridge
+from sklearn.linear_model import SGDRegressor
 
 
 def generate_sample(m):
@@ -28,27 +29,25 @@ if __name__ == "__main__":
 
     model = LinearRegression()
     model.train(X_train_processed, y_train, regressionType=model.RegressionType.RidgeRegression,
-                soulutionType=model.SoulutionType.normal, processingType=model.ProcessingType.not_process, weights=weights)
+                soulutionType=model.SoulutionType.GD, processingType=model.ProcessingType.not_process, weights=weights)
     y_predict = model.predict(
         X_test_processed, processingType=model.ProcessingType.not_process, weights=weights)
 
-    noweight_model = LinearRegression()
-    noweight_model.train(X_train_processed, y_train, regressionType=model.RegressionType.RidgeRegression,
-                         soulutionType=model.SoulutionType.normal, processingType=model.ProcessingType.not_process)
-    noweight_y_predict = noweight_model.predict(
-        X_test_processed, processingType=noweight_model.ProcessingType.not_process)
+    SGD_model = SGDRegressor(epsilon=1e-6)
+    SGD_model.fit(X_train_processed, y_train.ravel(), sample_weight=weights)
+    SGD_y_predict = SGD_model.predict(X_test_processed)
 
     ridge_model = Ridge()
-    ridge_model.fit(X_train_processed, y_train, sample_weight=weights)
+    ridge_model.fit(X_train_processed, y_train.ravel(), sample_weight=weights)
     ridge_y_predict = ridge_model.predict(X_test_processed)
 
-    print("无权重的均方误差: ", noweight_model.MSE(y_test, noweight_y_predict),
-          " 无权重的R2: ", noweight_model.R2_score(y_test, noweight_y_predict))
     print("自己写的均方误差: ", model.MSE(y_test, y_predict),
           " 自己写的R2: ", model.R2_score(y_test, y_predict))
-    print("sk库岭回归的均方误差: ", model.MSE(y_test, ridge_y_predict),
-          " sk库岭回归的R2: ", ridge_model.score(X_test_processed, y_test))
+    print("sk库随机梯度的均方误差: ", model.MSE(y_test, SGD_y_predict),
+          " sk库随机梯度的R2: ", SGD_model.score(X_test_processed, y_test))
+    print("sk库ridge的均方误差: ", model.MSE(y_test, ridge_y_predict),
+          " sk库ridge的R2: ", ridge_model.score(X_test_processed, y_test))
 
     model.plot_true_scatter_and_compare_predict_line(
-        X_test, y_test, y_predict, ridge_y_predict)
+        X_test, y_test, y_predict, SGD_y_predict)
     plt.show()
