@@ -13,7 +13,7 @@ from sklearn.linear_model import SGDRegressor
 def generate_sample(m):
     np.random.seed(int(time.time()))
     X = 2*(np.random.rand(m, 1)-0.5)
-    y = 5*X + np.random.normal(0, 0.5, (m, 1))+3
+    y = 10*X**3-2*X**2 + 5*X + 3 + np.random.normal(0, 0.5, (m, 1))
     return X.reshape(-1, 1), y.reshape(-1, 1)
 
 
@@ -21,14 +21,17 @@ if __name__ == "__main__":
     X_train, y_train = generate_sample(100)
     X_test, y_test = generate_sample(100)
 
-    init_w = np.array([3.00619227, 5.16967333]).reshape(-1, 1)
-
-    model = LinearRegression(GD_epsilon=0.000001)
+    model = LinearRegression(f_test_confidence_interval=0.95)
     model.train(X_train, y_train, regressionType=model.RegressionType.LinearRegression,
-                soulutionType=model.SoulutionType.GD, processingType=model.ProcessingType.normal)
-    y_predict = model.predict(X_test)
+                soulutionType=model.SoulutionType.GD_invscaling, processingType=model.ProcessingType.multinomial,
+                processing_feature_degree=10, featureSelectionType=model.FeatureSelectType.step_forward)
+    y_predict = model.predict(
+        X_test, processingType=model.ProcessingType.multinomial, processing_feature_degree=10)
 
-    SGD_model = SGDRegressor()
+    SGD_model = Pipeline([
+        ("poly", PolynomialFeatures(degree=10)),
+        ("lin_reg", SGDRegressor())
+    ])
     SGD_model.fit(X_train, y_train.ravel())
     SGD_y_predict = SGD_model.predict(X_test)
 

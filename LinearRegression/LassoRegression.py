@@ -15,6 +15,7 @@ class LassoRegression(LinearRegressionBase):
         GD_step_rate: 梯度下降搜索步长
         GD_epsilon: 梯度下降结果误差许可值
         GD_init_w: 梯度下降的初始值
+        power_t: 梯度下降随迭代改变步长的参数
     '''
     Lambda_l1 = None
 

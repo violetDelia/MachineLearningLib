@@ -25,6 +25,7 @@ class LinearRegression(RidgeRegression, StagewiseRegression, LassoRegression, Da
         GD_step_rate: 梯度下降搜索步长
         GD_epsilon: 梯度下降结果误差许可值
         GD_init_w: 梯度下降的初始值
+        power_t: 梯度下降随迭代改变步长的参数
     '''
     A = None
 
@@ -47,6 +48,10 @@ class LinearRegression(RidgeRegression, StagewiseRegression, LassoRegression, Da
         SGD = 2
         '''
         次梯度下降求解
+        '''
+        GD_invscaling = 3
+        '''
+        invscaling梯度下降求解
         '''
 
     class ProcessingType(Enum):
@@ -114,7 +119,7 @@ class LinearRegression(RidgeRegression, StagewiseRegression, LassoRegression, Da
 
     def __init__(self, Lambda_l1=1, Lambda_l2=1,
                  f_test_confidence_interval=0.95, stagewize_learning_rate=0.01, stagewize_max_steps=10000,
-                 GD_max_steps=1000, GD_step_rate=0.1, GD_epsilon=0.001, GD_init_w=None):
+                 GD_max_steps=1000, GD_step_rate=0.1, GD_epsilon=0.001, GD_init_w=None,power_t = 0.25):
         self._set_Lambda_l1(Lambda_l1)
         self._set_Lambda_l2(Lambda_l2)
         self._set_f_test_confidence_interval(f_test_confidence_interval)
@@ -124,6 +129,7 @@ class LinearRegression(RidgeRegression, StagewiseRegression, LassoRegression, Da
         self._set_GD_step_rate(GD_step_rate)
         self._set_GD_epsilon(GD_epsilon)
         self._set_GD_init_w(GD_init_w)
+        self._set_power_t(power_t)
 
     def _preprocessing(self, X_train, y_train, processingType, weights, processing_feature_degree):
         '''
@@ -367,19 +373,25 @@ class LinearRegression(RidgeRegression, StagewiseRegression, LassoRegression, Da
                 return self._fit_linear_normal(X_processed, y_processed)
             elif soulutionType == self.SoulutionType.GD:
                 return self._fit_linear_GD(X_processed, y_processed)
+            elif soulutionType == self.SoulutionType.GD_invscaling:
+                return self._fit_linear_GD_invscaling(X_processed,y_processed)
             elif soulutionType == self.SoulutionType.SGD:
-                return None
+                pass
         elif regressionType == self.RegressionType.RidgeRegression:
             if soulutionType == self.SoulutionType.normal:
                 return self._fit_ridge_normal(X_processed, y_processed)
             elif soulutionType == self.SoulutionType.GD:
                 return self._fit_ridge_GD(X_processed, y_processed)
+            elif soulutionType == self.SoulutionType.GD_invscaling:
+                pass
             elif soulutionType == self.SoulutionType.SGD:
-                return None
+                pass
         elif regressionType == self.RegressionType.StagewiseRegression:
             if soulutionType == self.SoulutionType.normal:
                 return self._fit_stagewize(X_processed, y_processed)
             elif soulutionType == self.SoulutionType.GD:
+                return self._fit_stagewize(X_processed, y_processed)
+            elif soulutionType == self.SoulutionType.GD_invscaling:
                 return self._fit_stagewize(X_processed, y_processed)
             elif soulutionType == self.SoulutionType.SGD:
                 return self._fit_stagewize(X_processed, y_processed)
@@ -387,6 +399,8 @@ class LinearRegression(RidgeRegression, StagewiseRegression, LassoRegression, Da
             if soulutionType == self.SoulutionType.normal:
                 return None
             elif soulutionType == self.SoulutionType.GD:
+                return None
+            elif soulutionType == self.SoulutionType.GD_invscaling:
                 return None
             elif soulutionType == self.SoulutionType.SGD:
                 return self._fit_lasso_SGD(X_processed, y_processed)
