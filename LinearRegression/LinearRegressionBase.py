@@ -11,6 +11,7 @@ class LinearRegressionBase:
         GD_max_steps: 梯度下降最大迭代次数
         GD_step_rate: 梯度下降搜索步长
         GD_epsilon: 梯度下降结果误差许可值
+        GD_init_w: 梯度下降的初始值
     '''
     w = None
     GD_max_steps = None

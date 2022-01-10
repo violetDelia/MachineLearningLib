@@ -14,6 +14,7 @@ class RidgeRegression(LinearRegressionBase):
         GD_max_steps: 梯度下降最大迭代次数
         GD_step_rate: 梯度下降搜索步长
         GD_epsilon: 梯度下降结果误差许可值
+        GD_init_w: 梯度下降的初始值
     '''
     Lambda_l2 = None
 
@@ -53,9 +54,8 @@ class RidgeRegression(LinearRegressionBase):
         梯度下降法求解岭回归
 
         参数:
-            GD_max_steps: 梯度下降最大迭代次数
-            GD_step_rate: 梯度下降搜索步长
-            GD_epsilon: 梯度下降结果误差许可值
+            X_train: 训练特征集
+            y_train: 训练结果集
         '''
         w = self._get_init_w(X_train, y_train)
         m, n = X_train.shape

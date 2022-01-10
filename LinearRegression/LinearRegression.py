@@ -6,9 +6,10 @@ from Preprocessing.Preprocessing import Preprocessing
 from LinearRegression.RidgeRegression import RidgeRegression
 from LinearRegression.RegressionUtility import RegressionUtility
 from LinearRegression.StagewiseRegression import StagewiseRegression
+from LinearRegression.LassoRegression import LassoRegression
 
 
-class LinearRegression(RidgeRegression, StagewiseRegression, DataVisualization, Preprocessing, ModelEvaluation, RegressionUtility):
+class LinearRegression(RidgeRegression, StagewiseRegression, LassoRegression, DataVisualization, Preprocessing, ModelEvaluation, RegressionUtility):
     '''
     线性回归模型
 
@@ -23,6 +24,7 @@ class LinearRegression(RidgeRegression, StagewiseRegression, DataVisualization, 
         GD_max_steps: 梯度下降最大迭代次数
         GD_step_rate: 梯度下降搜索步长
         GD_epsilon: 梯度下降结果误差许可值
+        GD_init_w: 梯度下降的初始值
     '''
     A = None
 
@@ -32,6 +34,7 @@ class LinearRegression(RidgeRegression, StagewiseRegression, DataVisualization, 
 
         normal: 正规方程求解
         GD: 梯度下降法求解
+        SGD: 次梯度下降求解
         '''
         normal = 0
         '''
@@ -40,6 +43,10 @@ class LinearRegression(RidgeRegression, StagewiseRegression, DataVisualization, 
         GD = 1
         '''
         梯度下降求解
+        '''
+        SGD = 2
+        '''
+        次梯度下降求解
         '''
 
     class ProcessingType(Enum):
@@ -70,6 +77,7 @@ class LinearRegression(RidgeRegression, StagewiseRegression, DataVisualization, 
         LinearRegression: 普通线性回归
         RigidRegression: 岭回归
         StagewiseRegression: 分段回归 (根据相关系数)
+        LassoRegression: lasso回归
         '''
         LinearRegression = 0
         '''
@@ -82,6 +90,10 @@ class LinearRegression(RidgeRegression, StagewiseRegression, DataVisualization, 
         StagewiseRegression = 2
         '''
         分段回归 (根据相关系数)
+        '''
+        LassoRegression = 3
+        '''
+        lasso回归
         '''
 
     class FeatureSelectType(Enum):
@@ -100,9 +112,10 @@ class LinearRegression(RidgeRegression, StagewiseRegression, DataVisualization, 
         向后逐步
         '''
 
-    def __init__(self, Lambda_l2=1,
+    def __init__(self, Lambda_l1=1, Lambda_l2=1,
                  f_test_confidence_interval=0.95, stagewize_learning_rate=0.01, stagewize_max_steps=10000,
                  GD_max_steps=1000, GD_step_rate=0.1, GD_epsilon=0.001, GD_init_w=None):
+        self._set_Lambda_l1(Lambda_l1)
         self._set_Lambda_l2(Lambda_l2)
         self._set_f_test_confidence_interval(f_test_confidence_interval)
         self._set_stagewize_learning_rate(stagewize_learning_rate)
@@ -127,9 +140,9 @@ class LinearRegression(RidgeRegression, StagewiseRegression, DataVisualization, 
 
         if processingType == self.ProcessingType.not_process:
             X_processed = X_train
-        if processingType == self.ProcessingType.normal:
+        elif processingType == self.ProcessingType.normal:
             X_processed = self._add_onevector_to_features(X_train)
-        if processingType == self.ProcessingType.multinomial:
+        elif processingType == self.ProcessingType.multinomial:
             X_processed = self._process_feature_to_multinomial_features(
                 X_train, processing_feature_degree)
         if weights is not None:
@@ -163,7 +176,7 @@ class LinearRegression(RidgeRegression, StagewiseRegression, DataVisualization, 
             if featureSelectionType == self.FeatureSelectType.step_forward:
                 self._forward_selection(
                     X_processed, y_processed, regressionType, soulutionType)
-            if featureSelectionType == self.FeatureSelectType.step_backward:
+            elif featureSelectionType == self.FeatureSelectType.step_backward:
                 self._backward_selection(
                     X_processed, y_processed, regressionType, soulutionType)
         return X_processed, y_processed
@@ -267,7 +280,6 @@ class LinearRegression(RidgeRegression, StagewiseRegression, DataVisualization, 
                 C.append(j_min)
             else:
                 break
-        print(A)
         self.A = A
 
     def RANSAC(self, X_train, y_train, max_distance, pass_rate=0.6, sub_rate=0.3, max_steps=100,
@@ -353,15 +365,31 @@ class LinearRegression(RidgeRegression, StagewiseRegression, DataVisualization, 
         if regressionType == self.RegressionType.LinearRegression:
             if soulutionType == self.SoulutionType.normal:
                 return self._fit_linear_normal(X_processed, y_processed)
-            if soulutionType == self.SoulutionType.GD:
+            elif soulutionType == self.SoulutionType.GD:
                 return self._fit_linear_GD(X_processed, y_processed)
-        if regressionType == self.RegressionType.RidgeRegression:
+            elif soulutionType == self.SoulutionType.SGD:
+                return None
+        elif regressionType == self.RegressionType.RidgeRegression:
             if soulutionType == self.SoulutionType.normal:
                 return self._fit_ridge_normal(X_processed, y_processed)
-            if soulutionType == self.SoulutionType.GD:
+            elif soulutionType == self.SoulutionType.GD:
                 return self._fit_ridge_GD(X_processed, y_processed)
-        if regressionType == self.RegressionType.StagewiseRegression:
-            return self._fit_stagewize(X_processed, y_processed)
+            elif soulutionType == self.SoulutionType.SGD:
+                return None
+        elif regressionType == self.RegressionType.StagewiseRegression:
+            if soulutionType == self.SoulutionType.normal:
+                return self._fit_stagewize(X_processed, y_processed)
+            elif soulutionType == self.SoulutionType.GD:
+                return self._fit_stagewize(X_processed, y_processed)
+            elif soulutionType == self.SoulutionType.SGD:
+                return self._fit_stagewize(X_processed, y_processed)
+        elif regressionType == self.RegressionType.LassoRegression:
+            if soulutionType == self.SoulutionType.normal:
+                return None
+            elif soulutionType == self.SoulutionType.GD:
+                return None
+            elif soulutionType == self.SoulutionType.SGD:
+                return self._fit_lasso_SGD(X_processed, y_processed)
 
     def train(self, X_train, y_train, regressionType=RegressionType.LinearRegression,
               soulutionType=SoulutionType.normal, processingType=ProcessingType.normal,
